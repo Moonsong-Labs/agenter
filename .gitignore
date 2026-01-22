@@ -1,0 +1,33 @@
+# --- Python / tooling ---
+__pycache__/
+*.py[cod]
+*.pyd
+
+# Virtualenvs / env files
+.env
+.envrc
+.venv/
+venv/
+env/
+
+# Tests / typecheck / linters
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+
+# Documentation build
+docs/_build/
+
+# --- Editor / OS ---
+.history/
+.DS_Store
+.idea/
+.vscode/

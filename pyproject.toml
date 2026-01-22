@@ -1,0 +1,181 @@
+[project]
+name = "agenter"
+version = "0.1.0"
+description = "Agenter — Backend-agnostic SDK for autonomous coding agents supporting Claude, Codex, Anthropic, and AWS Bedrock with streaming, budget controls, security validation, and LangGraph/PydanticAI adapters."
+requires-python = ">=3.12"
+license = "Apache-2.0"
+authors = [{ name = "Moonsong Labs", email = "gabriel@moonsonglabs.com" }]
+readme = "README.md"
+keywords = ["ai", "coding", "agent", "claude", "anthropic", "automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "pydantic>=2.0",
+    "anthropic[bedrock]>=0.40.0",
+    "rich>=13.0.0",
+    "tenacity>=8.0.0",
+    "structlog>=24.0.0",
+    "pathspec>=0.12.0",
+]
+
+[project.optional-dependencies]
+# Backend options
+claude-code = ["claude-agent-sdk>=0.1.0"]
+codex = ["openai-agents>=0.6.0", "openai>=2.9.0,<3", "mcp>=1.0.0", "cloudpickle>=3.0.0", "tiktoken>=0.7.0"]
+openhands = ["openhands-sdk>=1.0", "openhands-tools>=1.0"]
+
+# Framework adapters (individual)
+pydantic-ai = ["pydantic-ai>=0.1.0"]
+langgraph = ["langgraph>=0.2.0", "langchain-core>=0.3.0"]
+
+# All framework adapters bundled
+adapters = ["pydantic-ai>=0.1.0", "langgraph>=0.2.0", "langchain-core>=0.3.0"]
+
+# Validators (optional security scanning)
+security = ["bandit>=1.7.0"]
+
+# Pricing support (optional, reduces install footprint without it)
+pricing = ["litellm>=1.40.0"]
+
+# Development
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=4.0",
+    "python-dotenv>=1.0",
+    "ruff>=0.8",
+    "mypy>=1.0",
+    "ipython>=8.0",
+    "jupyter>=1.0",
+]
+
+# All backend SDKs (requires external CLIs/API keys)
+all-backends = [
+    "claude-agent-sdk>=0.1.0",
+    "openai-agents>=0.6.0", "openai>=2.9.0,<3", "mcp>=1.0.0", "cloudpickle>=3.0.0", "tiktoken>=0.7.0",
+    "openhands-sdk>=1.0", "openhands-tools>=1.0",
+]
+
+# Documentation
+docs = ["sphinx>=7.0", "sphinx-autodoc-typehints>=2.0", "furo>=2024.0", "myst-parser>=3.0"]
+
+[project.urls]
+Homepage = "https://github.com/moonsong-labs/agenter"
+Documentation = "https://agenter.readthedocs.io"
+Repository = "https://github.com/moonsong-labs/agenter"
+Issues = "https://github.com/moonsong-labs/agenter/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agenter"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # isort
+    "W",      # pycodestyle warnings
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "RUF",    # ruff-specific rules
+    "PT",     # flake8-pytest-style
+]
+ignore = [
+    "ARG001", # Unused function argument (often needed for protocol compliance)
+    "ARG002", # Unused method argument (often needed for protocol compliance)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ARG"]  # Allow unused arguments in tests
+"agenter/models/**" = ["TC001", "TC003"]  # Pydantic models need runtime imports
+"agenter/validators/chain.py" = ["TC001"]  # Pydantic models need runtime imports
+
+[tool.ruff.lint.isort]
+known-first-party = ["agenter"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+warn_no_return = true
+follow_imports = "normal"
+show_error_codes = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "bandit.*",
+    "boto3.*",
+    "botocore.*",
+    "pydantic_ai.*",
+    "langgraph.*",
+    "litellm.*",
+    "ai_agents.*",
+    "data_models.*",
+    "utils.llm_usage",
+    "claude_agent_sdk.*",
+    "cloudpickle",
+    "config.*",
+    "openhands.*",
+    "mcp.*",
+    "tiktoken",
+    "tiktoken.*",
+    "agents.*",
+    "langchain_core.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "agenter.adapters.*",
+]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.pytest.ini_options]
+# Note: asyncio_mode removed to allow pytest-asyncio (strict by default) and anyio to coexist
+testpaths = ["tests"]
+addopts = "-ra -q"
+
+[tool.coverage.run]
+source = ["agenter"]
+branch = true
+omit = [
+    # Framework adapters (optional integrations)
+    "agenter/adapters/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@abstractmethod",
+]
