@@ -1,29 +1,38 @@
 # Agenter Coder — OpenClaw Skill
 
-An [OpenClaw](https://openclaw.ai) skill that gives your agent autonomous coding
-capabilities powered by [Agenter](https://github.com/moonsonglabs/agenter).
+Delegate coding tasks to a separate autonomous agent instead of writing code
+tool-by-tool. Your context window stays clean. The sub-agent validates its
+output, retries on errors, and comes back with structured JSON results.
 
-Instead of writing code file-by-file, your OpenClaw agent delegates to a
-specialized coding agent with its own tool loop, validation, and retry logic.
+Powered by [Agenter](https://github.com/Moonsong-Labs/agenter) — a
+backend-agnostic SDK for autonomous coding agents.
 
-## What it does
+## How it compares
 
-When a user asks OpenClaw to write, generate, or fix code, this skill:
+Other ClawHub coding skills are either prompt instructions (telling your agent
+*how* to code) or wrappers around a single CLI. Agenter Coder is different:
 
-1. Spawns an autonomous coding agent (via Agenter SDK)
-2. The coding agent writes/edits files, runs commands, and validates its work
-3. Returns the results (status, files modified, cost) back to OpenClaw
-4. OpenClaw presents the results to the user
+| | Prompt-based skills | Codex Conductor | Codex Orchestrator | **agenter-coder** |
+|---|---|---|---|---|
+| Separate agent process | No | Yes (Codex PTY) | Yes (Codex PTY) | **Yes (Python SDK)** |
+| Multi-backend | N/A | Codex only | Codex only | **4 backends** |
+| Programmatic validation | No | Gate scripts | No | **AST + Bandit security** |
+| Budget enforcement | None | Iteration limit | None | **Cost, tokens, time, iterations** |
+| Structured output | Chat text | Status files | Log scraping | **JSON with status + cost** |
+
+The trade-off: prompt-only skills are zero-dependency and work immediately.
+Agenter Coder requires `python3`, `uv`, and `pip install agenter` — more
+moving parts, but you get real validation and backend portability.
 
 ## Backends
 
-Switch between AI providers with a single parameter:
+Switch between AI providers with a single flag:
 
 | Backend | Provider | Models |
 |---------|----------|--------|
-| `anthropic-sdk` | Anthropic | Claude Sonnet, Opus, Haiku |
+| `anthropic-sdk` | Anthropic | Claude Sonnet 4, Opus 4, Haiku |
 | `claude-code` | Anthropic | Claude Code's native runtime |
-| `codex` | OpenAI | o3, GPT-4o |
+| `codex` | OpenAI | gpt-5.4, gpt-5.4-mini |
 | `openhands` | Any | Any model via litellm |
 
 ## Installation
@@ -36,10 +45,8 @@ clawhub install agenter-coder
 
 ### From this repo
 
-Clone the agenter repo and copy the skill into your OpenClaw workspace:
-
 ```bash
-git clone https://github.com/moonsonglabs/agenter.git
+git clone https://github.com/Moonsong-Labs/agenter.git
 cp -r agenter/integrations/openclaw ~/.openclaw/workspace/skills/agenter-coder
 ```
 
@@ -65,7 +72,7 @@ Add to your `openclaw.json`:
 Install the Python dependency:
 
 ```bash
-uv pip install agenter>=0.1.1
+uv pip install agenter>=0.1.2
 ```
 
 Restart your OpenClaw session after installing.
@@ -109,17 +116,7 @@ Or use the slash command:
 
 The agent automatically selects appropriate budget limits based on task complexity.
 
-## Budget controls
-
-Every coding task runs with configurable limits to prevent runaway costs:
-
-- **max_cost_usd** — Cap spending in USD
-- **max_tokens** — Cap total token usage
-- **max_time_seconds** — Cap wall clock time
-- **max_iterations** — Cap validation/retry cycles
-
 ## Links
 
-- [Agenter SDK](https://github.com/moonsonglabs/agenter) — The underlying coding agent SDK
+- [Agenter SDK](https://github.com/Moonsong-Labs/agenter) — The underlying coding agent SDK
 - [OpenClaw](https://openclaw.ai) — The AI agent platform
-- [ClawHub](https://clawhub.openclaw.ai) — Skill registry
