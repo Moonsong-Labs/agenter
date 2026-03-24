@@ -10,7 +10,7 @@ import structlog
 
 from .coding_backends.anthropic_sdk import AnthropicSDKBackend
 from .coding_backends.claude_code import ClaudeCodeBackend
-from .config import BACKEND_ANTHROPIC_SDK, BACKEND_CLAUDE_CODE, BACKEND_CODEX, BACKEND_OPENHANDS
+from .config import BACKEND_ANTHROPIC_SDK, BACKEND_CLAUDE_CODE, BACKEND_CODEX, BACKEND_OPENHANDS, default_backend
 from .data_models import CodingEvent, CodingRequest, CodingResult, Verbosity
 from .post_validators.syntax import SyntaxValidator
 from .runtime import CodingSession, ConsoleDisplay, Tracer
@@ -57,7 +57,7 @@ class AutonomousCodingAgent:
 
     def __init__(
         self,
-        backend: str = BACKEND_ANTHROPIC_SDK,
+        backend: str | None = None,
         model: str | None = None,
         tools: list[Tool] | None = None,
         validators: Sequence[Validator] | None = None,
@@ -73,8 +73,9 @@ class AutonomousCodingAgent:
         """Initialize the agent.
 
         Args:
-            backend: Backend to use. Options:
-                - "anthropic-sdk": Anthropic SDK with custom tools (default, RECOMMENDED)
+            backend: Backend to use. If None, uses ACA_DEFAULT_BACKEND env var
+                (falls back to "anthropic-sdk"). Options:
+                - "anthropic-sdk": Anthropic SDK with custom tools
                 - "claude-code": Claude Code SDK with native sandbox
                 - "codex": OpenAI Codex CLI via MCP server
                 - "openhands": OpenHands SDK (requires sandbox=False)
@@ -103,6 +104,9 @@ class AutonomousCodingAgent:
             codex_mcp_servers: Custom MCP servers to pass to Codex (codex only).
                 Gives Codex access to additional tools during execution.
         """
+        if backend is None:
+            backend = default_backend()
+        logger.info("agent_init", backend=backend)
         if backend not in (BACKEND_ANTHROPIC_SDK, BACKEND_CLAUDE_CODE, BACKEND_CODEX, BACKEND_OPENHANDS):
             from .data_models import ConfigurationError
 

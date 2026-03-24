@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-03-24
+
+### Added
+- Configurable default backend via `ACA_DEFAULT_BACKEND` environment variable
+- OpenClaw skill integration (`integrations/openclaw/`) with CLI bridge for autonomous coding from any messaging channel
+- Codex backend: filesystem diff to catch all modified files, not just event-parsed ones
+- Codex backend: automatic `OPENAI_API_KEY` → codex auth sync on connect
+- Codex backend: structured output support via prompt injection
+- Codex backend: pre-flight check for codex CLI installation
+
+### Fixed
+- `AutonomousCodingAgent(backend=...)` now accepts `None` to use env var default instead of hardcoding `"anthropic-sdk"`
+
+### Security
+- Added warning about litellm 1.82.7–1.82.8 supply chain compromise in optional dependency comment
+
 ## [0.1.0] - 2025-01-22
 
 ### Added
@@ -25,5 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive type hints and Pydantic models
 - Structured logging with structlog
 
-[Unreleased]: https://github.com/moonsong-labs/agenter/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/moonsong-labs/agenter/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/moonsong-labs/agenter/compare/v0.1.0...v0.1.2
 [0.1.0]: https://github.com/moonsong-labs/agenter/releases/tag/v0.1.0

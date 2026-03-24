@@ -45,6 +45,20 @@ def is_bedrock() -> bool:
 VALID_BACKENDS: Final = frozenset({BACKEND_ANTHROPIC_SDK, BACKEND_CLAUDE_CODE, BACKEND_CODEX, BACKEND_OPENHANDS})
 
 
+def default_backend() -> str:
+    """Return the default backend, configurable via ACA_DEFAULT_BACKEND env var."""
+    env = os.environ.get("ACA_DEFAULT_BACKEND", BACKEND_ANTHROPIC_SDK)
+    if env not in VALID_BACKENDS:
+        from .data_models import ConfigurationError
+
+        raise ConfigurationError(
+            f"Invalid ACA_DEFAULT_BACKEND={env!r}. Must be one of: {', '.join(sorted(VALID_BACKENDS))}",
+            parameter="ACA_DEFAULT_BACKEND",
+            value=env,
+        )
+    return env
+
+
 def parse_backend_spec(spec: str) -> tuple[str, str | None, str | None]:
     """Parse 'agenter:backend:model' notation.
 

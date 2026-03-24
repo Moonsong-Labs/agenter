@@ -3,7 +3,7 @@
 from typing import Final
 
 # Default model for Codex
-CODEX_DEFAULT_MODEL: Final = "gpt-5.1-codex"
+CODEX_DEFAULT_MODEL: Final = "gpt-5.4"
 
 # Default approval policy (autonomous operation)
 CODEX_DEFAULT_APPROVAL_POLICY: Final = "never"

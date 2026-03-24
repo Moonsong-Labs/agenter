@@ -22,7 +22,9 @@ import asyncio
 import contextlib
 import json
 import logging
+import os
 import re
+import shutil
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -192,6 +194,7 @@ class CodexBackend(BaseBackend):
             )
 
         self._model = model or CODEX_DEFAULT_MODEL
+        self.model = self._model  # Public attribute for session display
         self._approval_policy = approval_policy
         self._sandbox = sandbox
         self._mcp_servers = mcp_servers or []
@@ -331,6 +334,12 @@ class CodexBackend(BaseBackend):
         self._conversation_id = resume_session_id
         self._modified_files = set()
 
+        # Snapshot existing files so we can diff after execution
+        self._pre_existing_files: dict[str, float] = {}
+        for f in self._cwd.rglob("*"):
+            if f.is_file():
+                self._pre_existing_files[str(f)] = f.stat().st_mtime
+
         # Reset common state and set output_type
         self._reset_state()
         self._output_type = output_type
@@ -341,12 +350,37 @@ class CodexBackend(BaseBackend):
             )
 
         if output_type:
-            logger.warning(
-                "structured_output not directly supported by Codex MCP. Will attempt to parse from response text.",
+            logger.debug(
+                "structured_output_via_prompt",
                 output_type=output_type.__name__,
             )
 
-        # Start Codex MCP server subprocess (requires: npm install -g @openai/codex)
+        # Check codex CLI is installed
+        if not shutil.which("codex"):
+            raise BackendError(
+                "Codex CLI not found. Install with: npm install -g @openai/codex",
+                backend="codex",
+            )
+
+        # The codex CLI reads API keys from ~/.codex/auth.json, not from
+        # OPENAI_API_KEY env var. Sync the env var into codex via `codex login`.
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if api_key:
+            proc = await asyncio.create_subprocess_exec(
+                "codex",
+                "login",
+                "--with-api-key",
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await proc.communicate(input=api_key.encode())
+            if proc.returncode == 0:
+                logger.info("codex_auth_synced", source="OPENAI_API_KEY")
+            else:
+                logger.warning("codex_auth_sync_failed", returncode=proc.returncode)
+
+        # Start Codex MCP server subprocess
         self._mcp_server = MCPServerStdio(
             name="codex",
             params={
@@ -382,6 +416,11 @@ class CodexBackend(BaseBackend):
 
         # Build full prompt with optional system context
         full_prompt = f"{self._custom_system_prompt}\n\n{prompt}" if self._custom_system_prompt else prompt
+
+        # If structured output is requested, instruct the LLM to respond with JSON
+        if self._output_type is not None:
+            schema = json.dumps(self._output_type.model_json_schema(), indent=2)
+            full_prompt += f"\n\nRespond ONLY with a JSON object matching this schema:\n```json\n{schema}\n```"
 
         # Track input tokens using tiktoken
         self._input_tokens += self._count_tokens(full_prompt)
@@ -508,6 +547,8 @@ class CodexBackend(BaseBackend):
                     if item_type == "text":
                         text = item.get("text", "")
                         if text:
+                            # Detect error JSON responses from codex
+                            self._check_error_response(text)
                             messages.append(TextMessage(content=text))
                             self._output_tokens += self._count_tokens(text)
                     elif item_type == "tool_use":
@@ -591,6 +632,17 @@ class CodexBackend(BaseBackend):
 
         return data
 
+    def _check_error_response(self, text: str) -> None:
+        """Raise BackendError if the text is a codex error JSON response."""
+        try:
+            data = json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            return
+        if isinstance(data, dict) and data.get("type") == "error":
+            error = data.get("error", {})
+            msg = error.get("message", str(error)) if isinstance(error, dict) else str(error)
+            raise BackendError(f"Codex API error: {msg}", backend="codex")
+
     def _track_tool_file_modification(self, tool_name: str, args: dict[str, Any]) -> None:
         """Track file modifications from tool calls.
 
@@ -653,10 +705,20 @@ class CodexBackend(BaseBackend):
     def modified_files(self) -> PathsModifiedFiles:
         """Return files modified during execution.
 
-        Note: Codex tracks files internally. We return paths extracted from
-        tool calls and text output; content must be read from disk.
+        Combines event-parsed paths with filesystem diff (new/changed files
+        since connect()) to catch files the codex CLI wrote without emitting
+        tracked tool-call events.
         """
-        return PathsModifiedFiles(file_paths=list(self._modified_files))
+        paths = set(self._modified_files)
+        if self._cwd:
+            for f in self._cwd.rglob("*"):
+                if not f.is_file():
+                    continue
+                rel = str(f.relative_to(self._cwd))
+                fstr = str(f)
+                if fstr not in self._pre_existing_files or f.stat().st_mtime > self._pre_existing_files[fstr]:
+                    paths.add(rel)
+        return PathsModifiedFiles(file_paths=list(paths))
 
     def usage(self) -> Usage:
         """Return cumulative token usage and cost across all executions.

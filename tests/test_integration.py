@@ -255,7 +255,7 @@ class TestCodexIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             agent = AutonomousCodingAgent(
                 backend="codex",
-                model="o3-mini",  # Use mini for faster/cheaper tests
+                model=None,  # Use default codex model
                 codex_approval_policy="never",
             )
             result = await agent.execute(
@@ -281,7 +281,7 @@ class TestCodexIntegration:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             backend = CodexBackend(
-                model="o3-mini",
+                model=None,
                 approval_policy="never",
                 sandbox="workspace-write",
             )
@@ -300,7 +300,7 @@ class TestCodexIntegration:
             # Check usage was tracked
             usage = backend.usage()
             assert usage.provider == "codex"
-            assert usage.model == "o3-mini"
+            assert usage.model == "gpt-5.4"
 
             await backend.disconnect()
 
@@ -310,7 +310,7 @@ class TestCodexIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             agent = AutonomousCodingAgent(
                 backend="codex",
-                model="o3-mini",
+                model=None,
             )
             events = []
 
@@ -388,7 +388,7 @@ def _get_agent_instance(
     elif backend_name == "codex":
         return AutonomousCodingAgent(
             backend="codex",
-            model="o3-mini",
+            model=None,
             codex_approval_policy="never",
             sandbox=False,
             tools=extra_tools,
@@ -490,7 +490,10 @@ class TestBackendCustomTools:
             events = []
             async for event in agent.stream_execute(
                 CodingRequest(
-                    prompt="Use the get_magic_number tool with multiplier=3 and tell me the result.",
+                    prompt=(
+                        "Use the get_magic_number tool with multiplier=3 and write "
+                        "the result to result.txt. You MUST call the tool."
+                    ),
                     cwd=tmpdir,
                     max_iterations=3,
                 )
@@ -499,12 +502,14 @@ class TestBackendCustomTools:
 
             # Verify tool was called - check either:
             # 1. In-process counter was incremented (anthropic-sdk, claude-code, openhands), OR
-            # 2. Result "126" appears in events (codex uses subprocess)
+            # 2. Result "126" appears in events (codex uses subprocess), OR
+            # 3. "126" appears in any file written to tmpdir (codex may name file differently)
             has_result_in_events = any("126" in str(getattr(e, "data", "")) for e in events)
+            has_result_in_files = any("126" in f.read_text() for f in Path(tmpdir).rglob("*") if f.is_file())
 
-            assert tool_call_count["count"] >= 1 or has_result_in_events, (
+            assert tool_call_count["count"] >= 1 or has_result_in_events or has_result_in_files, (
                 f"{backend_name} should call custom tool (counter={tool_call_count['count']}, "
-                f"has_result={has_result_in_events})"
+                f"has_result={has_result_in_events}, has_files={has_result_in_files})"
             )
 
 

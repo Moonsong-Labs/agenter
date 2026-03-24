@@ -1,6 +1,6 @@
 [project]
 name = "agenter"
-version = "0.1.1"
+version = "0.1.2"
 description = "Agenter — Backend-agnostic SDK for autonomous coding agents supporting Claude, Codex, Anthropic, and AWS Bedrock with streaming, budget controls, security validation, and LangGraph/PydanticAI adapters."
 requires-python = ">=3.12"
 license = "Apache-2.0"
@@ -45,7 +45,7 @@ adapters = ["pydantic-ai>=0.1.0", "langgraph>=0.2.0", "langchain-core>=0.3.0"]
 security = ["bandit>=1.7.0"]
 
 # Pricing support (optional, reduces install footprint without it)
-pricing = ["litellm>=1.40.0"]
+pricing = ["litellm>=1.40.0"]  # WARNING: litellm 1.82.7-1.82.8 are compromised (supply chain attack), pin to <1.82.7 if needed
 
 # Development
 dev = [

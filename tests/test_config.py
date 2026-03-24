@@ -3,10 +3,14 @@
 import os
 from unittest.mock import patch
 
+import pytest
+
 from agenter.config import (
+    default_backend,
     default_model,
     is_bedrock,
 )
+from agenter.data_models import ConfigurationError
 
 
 class TestIsBedrock:
@@ -38,3 +42,23 @@ class TestDefaultModel:
 
         # Models should be different for different backends
         assert anthropic_model != bedrock_model
+
+
+class TestDefaultBackend:
+    """Test default_backend function."""
+
+    def test_returns_anthropic_sdk_by_default(self):
+        with patch.dict(os.environ, {}, clear=True):
+            os.environ.pop("ACA_DEFAULT_BACKEND", None)
+            assert default_backend() == "anthropic-sdk"
+
+    def test_env_var_override(self):
+        with patch.dict(os.environ, {"ACA_DEFAULT_BACKEND": "codex"}):
+            assert default_backend() == "codex"
+
+    def test_invalid_env_var_raises(self):
+        with (
+            patch.dict(os.environ, {"ACA_DEFAULT_BACKEND": "invalid"}),
+            pytest.raises(ConfigurationError, match="Invalid ACA_DEFAULT_BACKEND"),
+        ):
+            default_backend()
